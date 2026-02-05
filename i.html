@@ -20,7 +20,7 @@
     <title>Dr. Deepak | NeuraScaleX</title>
     
     <!-- PWA Manifest -->
-    <link rel="manifest" href="./manifest.json">
+    <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon-192.png">
     
     <!-- Favicon -->
@@ -48,10 +48,11 @@
             left: 0;
             right: 0;
             bottom: 0;
+            /* Force hide address bar on scroll */
             -webkit-overflow-scrolling: touch;
         }
 
-        /* Additional styles to prevent scrolling */
+        /* Additional body styles to prevent scrolling */
         html {
             overflow: hidden;
             position: fixed;
@@ -193,7 +194,8 @@
         }
 
         /* Force widget to be fullscreen */
-        .nexus-chat-widget {
+        #widget-container iframe,
+        #widget-container > div {
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
@@ -206,8 +208,11 @@
             border-radius: 0 !important;
         }
 
-        /* Hide widget toggle button */
-        .nexus-chat-toggle {
+        /* Hide any widget launcher buttons */
+        button[class*="launcher"],
+        button[class*="trigger"],
+        div[class*="launcher"],
+        div[class*="trigger"] {
             display: none !important;
         }
     </style>
@@ -220,7 +225,7 @@
     </div>
 
     <!-- Safety Net Background -->
-    <div id="safety-net" class="hidden">
+    <div id="safety-net">
         <div class="safety-logo">NeuraScaleX</div>
         <div class="safety-subtitle">Your Digital Clinical Companion</div>
         <button class="reopen-button" onclick="reopenChat()">OPEN DIGITAL TWIN</button>
@@ -236,18 +241,17 @@
         // Session Sanitization - Clear localStorage on every load
         try {
             localStorage.clear();
-            sessionStorage.clear();
-            console.log('Session sanitized');
+            console.log('Session sanitized - localStorage cleared');
         } catch (e) {
-            console.warn('Could not clear storage:', e);
+            console.warn('Could not clear localStorage:', e);
         }
 
         // Configuration
         const CONFIG = {
-            widgetCheckInterval: 100,
-            maxWaitTime: 10000,
-            splashMinDuration: 2000,
-            autoOpenDelay: 500
+            widgetCheckInterval: 100, // Check every 100ms
+            maxWaitTime: 10000, // Wait up to 10 seconds
+            splashMinDuration: 2000, // Minimum splash screen duration
+            autoOpenDelay: 500 // Delay before auto-opening
         };
 
         let widgetCheckTimer = null;
@@ -256,21 +260,34 @@
 
         // Function to open the chat widget
         function openNexusChat() {
-            if (widgetOpened) return true;
+            if (widgetOpened) return;
 
-            const btn = document.querySelector(".nexus-chat-toggle");
-            
-            if (btn) {
-                console.log('Widget launcher found, opening chat...');
-                btn.click();
-                widgetOpened = true;
-                
-                // Hide safety net once widget opens
-                setTimeout(() => {
-                    document.getElementById('safety-net').classList.add('hidden');
-                }, 500);
-                
-                return true;
+            // Try multiple selectors to find the widget launcher
+            const selectors = [
+                'button[class*="launcher"]',
+                'button[class*="trigger"]',
+                'div[class*="launcher"]',
+                'div[class*="trigger"]',
+                '[data-widget-launcher]',
+                '#nexus-chat-launcher',
+                '.chat-launcher',
+                '.widget-launcher'
+            ];
+
+            for (const selector of selectors) {
+                const launcher = document.querySelector(selector);
+                if (launcher && launcher.click) {
+                    console.log('Widget launcher found, opening chat...');
+                    launcher.click();
+                    widgetOpened = true;
+                    
+                    // Hide safety net once widget opens
+                    setTimeout(() => {
+                        document.getElementById('safety-net').classList.add('hidden');
+                    }, 500);
+                    
+                    return true;
+                }
             }
 
             return false;
@@ -281,7 +298,9 @@
             widgetOpened = false;
             document.getElementById('safety-net').classList.add('hidden');
             
+            // Try to open immediately
             if (!openNexusChat()) {
+                // If not found, restart the check timer
                 startWidgetMonitoring();
             }
         }
@@ -295,12 +314,14 @@
             widgetCheckTimer = setInterval(() => {
                 const elapsed = Date.now() - startTime;
 
+                // Try to open the widget
                 if (openNexusChat()) {
                     clearInterval(widgetCheckTimer);
                     hideSplashScreen();
                     return;
                 }
 
+                // Stop checking after max wait time
                 if (elapsed > CONFIG.maxWaitTime) {
                     console.warn('Widget not found after max wait time');
                     clearInterval(widgetCheckTimer);
@@ -324,22 +345,48 @@
             }, remainingTime);
         }
 
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('PWA Wrapper initialized');
+            
+            // Force fullscreen mode and hide address bar
+            initializeFullscreen();
+            
+            // Start monitoring for widget after a brief delay
+            setTimeout(() => {
+                startWidgetMonitoring();
+            }, CONFIG.autoOpenDelay);
+        });
+
         // Function to hide address bar and force fullscreen
         function initializeFullscreen() {
+            // Method 1: Scroll to hide address bar (works in Chrome/Safari)
             window.scrollTo(0, 1);
             
+            // Method 2: Request fullscreen if supported (Android Chrome)
+            if (document.documentElement.requestFullscreen) {
+                // We can't auto-request fullscreen, but we can prepare for it
+                // User can manually trigger with gesture
+            }
+            
+            // Method 3: Set viewport height after a delay to account for address bar
             setTimeout(() => {
+                // Force recalculation of viewport height
                 const vh = window.innerHeight * 0.01;
                 document.documentElement.style.setProperty('--vh', `${vh}px`);
+                
+                // Apply to body
                 document.body.style.height = `${window.innerHeight}px`;
             }, 100);
             
+            // Update viewport height on orientation change
             window.addEventListener('resize', () => {
                 const vh = window.innerHeight * 0.01;
                 document.documentElement.style.setProperty('--vh', `${vh}px`);
                 document.body.style.height = `${window.innerHeight}px`;
             });
             
+            // Prevent rubber-band scrolling (iOS Safari)
             document.addEventListener('touchmove', (e) => {
                 if (e.target === document.body) {
                     e.preventDefault();
@@ -347,19 +394,10 @@
             }, { passive: false });
         }
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('PWA Wrapper initialized');
-            initializeFullscreen();
-            
-            setTimeout(() => {
-                startWidgetMonitoring();
-            }, CONFIG.autoOpenDelay);
-        });
-
-        // Handle visibility changes
+        // Handle visibility changes (user returns to tab)
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden && !widgetOpened) {
+                console.log('Page visible again, checking for widget...');
                 startWidgetMonitoring();
             }
         });
@@ -372,19 +410,17 @@
             console.log('PWA installation available');
         });
 
-        // Widget Configuration
-        window.nexusChatbotConfig = {
-            position: 'bottom-right',
-            theme: 'default',
-            autoOpen: false,
-            welcomeMessage: "Hi, I'm Dr Neura. How can I support your health today?"
-        };
-    </script>
-
-    <!-- NeuraScaleX Widget Script -->
-    <script 
-        src="https://nsx-widget-cxepcse2cxcmczbk.uksouth-01.azurewebsites.net/nexus-chatbot-widget.js"
-        onload="startWidgetMonitoring()">
+        // TODO: Load your NeuraScaleX widget script here
+        // Example:
+        // const script = document.createElement('script');
+        // script.src = 'https://your-widget-url.com/widget.js';
+        // script.async = true;
+        // script.setAttribute('data-config', JSON.stringify({
+        //     autoOpen: false,
+        //     clientId: 'YOUR_AZURE_CLIENT_ID',
+        //     // ... other config
+        // }));
+        // document.head.appendChild(script);
     </script>
 </body>
 </html>
