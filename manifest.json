@@ -1,0 +1,27 @@
+{
+  "name": "Dr. Deepak | NeuraScaleX",
+  "short_name": "Dr. Deepak",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#001b3a",
+  "theme_color": "#001b3a",
+  "orientation": "portrait",
+  "description": "Your Digital Clinical Companion - Secure AI-powered healthcare assistance",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["health", "medical"],
+  "lang": "en-US"
+}
